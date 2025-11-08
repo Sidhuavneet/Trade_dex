@@ -203,8 +203,7 @@ CLICKHOUSE_URL=https://your-instance.clickhouse.cloud:8443
 CLICKHOUSE_USERNAME=default
 CLICKHOUSE_PASSWORD=your-password
 
-# JWT Secret (change in production)
-JWT_SECRET=your-secret-key-change-in-production
+JUPITER_API_URL=https://api.jup.ag/price/v3
 ```
 
 #### Frontend (.env)
