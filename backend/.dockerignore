@@ -1,0 +1,14 @@
+target/
+Cargo.lock
+*.log
+.env
+.env.local
+*.pdb
+*.exe
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+

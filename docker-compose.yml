@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # ClickHouse Database
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: solana-trade-clickhouse
+    ports:
+      - "8123:8123"  # HTTP interface
+      - "9000:9000"  # Native protocol
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-default}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - solana-trade-network
+
+  # Rust Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: solana-trade-backend
+    ports:
+      - "3000:3000"
+    environment:
+      # QuickNode RPC
+      - QUICKNODE_RPC_URL=${QUICKNODE_RPC_URL}
+      # ClickHouse Configuration
+      - CLICKHOUSE_URL=http://clickhouse:8123
+      - CLICKHOUSE_USERNAME=${CLICKHOUSE_USERNAME:-default}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-default}
+      # JWT Secret
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - solana-trade-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/trades?pair=SOL/USDC&limit=1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:3000}
+        - VITE_WS_BASE_URL=${VITE_WS_BASE_URL:-ws://localhost:3000}
+        - VITE_SOLANA_NETWORK=${VITE_SOLANA_NETWORK:-mainnet-beta}
+    container_name: solana-trade-frontend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - solana-trade-network
+
+volumes:
+  clickhouse_data:
+    driver: local
+  clickhouse_logs:
+    driver: local
+
+networks:
+  solana-trade-network:
+    driver: bridge
+
